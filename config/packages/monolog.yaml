@@ -1,0 +1,75 @@
+monolog:
+    channels:
+        - deprecation
+        - bookstore
+
+when@dev:
+    monolog:
+        handlers:
+            store_file:
+                type: stream
+                path: "%kernel.logs_dir%/store.log"
+                level: debug
+                channels: ["bookstore"]
+
+            store_docker:
+                type: stream
+                path: "php://stdout"
+                level: debug
+                channels: ["bookstore"]
+
+            main:
+                type: stream
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: debug
+                channels: ["!event", "!store"]
+            console:
+                type: console
+                process_psr_3_messages: false
+                channels: ["!event", "!doctrine", "!console", "!store"]
+
+when@test:
+    monolog:
+        handlers:
+            main:
+                type: fingers_crossed
+                action_level: error
+                handler: nested
+                excluded_http_codes: [404, 405]
+                channels: ["!event"]
+            nested:
+                type: stream
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                level: debug
+
+when@prod:
+    monolog:
+        handlers:
+            store_prod:
+                type: stream
+                path: php://stderr
+                level: info
+                channels: ["bookstore"]
+                formatter: monolog.formatter.json
+
+            main:
+                type: fingers_crossed
+                action_level: error
+                handler: nested
+                excluded_http_codes: [404, 405]
+                channels: ["!deprecation", "!bookstore"]
+                buffer_size: 50
+            nested:
+                type: stream
+                path: php://stderr
+                level: debug
+                formatter: monolog.formatter.json
+            console:
+                type: console
+                process_psr_3_messages: false
+                channels: ["!event", "!doctrine", "!bookstore"]
+            deprecation:
+                type: stream
+                channels: [deprecation]
+                path: php://stderr
+                formatter: monolog.formatter.json

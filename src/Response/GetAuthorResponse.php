@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Response;
+
+use App\DTO\AuthorDTO;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+
+final class GetAuthorResponse extends JsonResponse
+{
+    public function __construct(AuthorDTO $authorDto)
+    {
+        parent::__construct([
+            'status' => 'success',
+            'data' => $authorDto->jsonSerialize(),
+        ], status: Response::HTTP_OK);
+    }
+}

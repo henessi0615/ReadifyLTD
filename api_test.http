@@ -1,0 +1,269 @@
+### 1. Create an Author (This will get ID: 1)
+POST http://localhost:8000/api/v1/authors
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Martin Fauler",
+    "biography": "Famous Engineer-programmist, playboy, filantrop"
+}
+
+### 2. Create a Book (Now validation for authorId 1 will PASS!)
+POST http://localhost:8000/api/v1/books
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "Famous book",
+    "description": "description of famous book",
+    "isbn": "9785171234564",
+    "priceAmount": "39.99",
+    "priceCurrency": "USD",
+    "authorId": "01a19d88-09f4-706a-bfcc-ca2ed449c2b2"
+}
+
+### 3. Get All Books (Will return the newly created book)
+GET http://localhost:8000/api/v1/books
+Accept: application/json
+
+### 4.1 Get Book by ID - Success
+GET http://localhost:8000/api/v1/books/01a19d99-337f-7105-b950-54d940c00914
+Accept: application/json
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response content-type is json", function() {
+        client.assert(response.contentType.mimeType === "application/json", "Expected 'application/json'");
+    });
+
+    client.test("Check book structure", function() {
+        client.assert(response.body.hasOwnProperty("bookId"), "Missing 'bookId'");
+        client.assert(response.body.hasOwnProperty("title"), "Missing 'title'");
+    });
+%}
+
+### 4.2 Get Book by ID - Not Found
+GET http://localhost:8000/api/v1/books/99999
+Accept: application/json
+
+> {%
+    client.test("Request should fail with 404", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
+
+### 4.3 Get Book by ID - Invalid ID Format (Validation Check)
+GET http://localhost:8000/api/v1/books/abc
+Accept: application/json
+
+> {%
+    client.test("Request should fail with 404 due to Routing Requirements", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
+
+### 5.1 Update Book - Success
+PUT http://localhost:8000/api/v1/books/01a19d99-337f-7105-b950-54d940c00914
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "Readify Clean Architecture Vol 2",
+  "description": "Very very very interesting book description",
+  "isbn": "9780134494166",
+  "priceAmount": "19.99",
+  "priceCurrency": "USD",
+  "authorId": "01a19d88-09f4-706a-bfcc-ca2ed449c2b2"
+}
+
+> {%
+    client.test("Book updated successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Check updated fields", function() {
+        // Если вы используете чистый REST ответ:
+        client.assert(response.body.title === "Readify Clean Architecture Vol 2", "Title was not updated");
+        client.assert(response.body.price === 2500, "Price was not updated");
+
+        // Если вы оставили обертку 'status'/'data', раскомментируйте строки ниже:
+        // client.assert(response.body.data.title === "Readify Clean Architecture Vol 2", "Title was not updated");
+        // client.assert(response.body.data.price === 2500, "Price was not updated");
+    });
+%}
+
+### 5.2 Update Book - Not Found
+PUT http://localhost:8000/api/v1/books/99999
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "Non-existent Book",
+    "isbn": "978-3-16-148410-0",
+    "price": 1500,
+    "authorId": 1
+}
+
+> {%
+    client.test("Should return 404 for missing book", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
+
+### 5.3 Update Book - Validation Failed (Invalid ISBN & Missing Author)
+PUT http://localhost:8000/api/v1/books/1
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "Invalid Book Data",
+    "isbn": "invalid-isbn-string",
+    "price": -100,
+    "authorId": 99999
+}
+
+> {%
+    client.test("Should return 422 Unprocessable Entity due to validation mapping", function() {
+        // #[MapRequestPayload] автоматически выбрасывает 422 при нарушении #[Assert]
+        client.assert(response.status === 422, "Response status is not 422");
+    });
+%}
+
+### 6.1 Delete Book - Success
+DELETE http://localhost:8000/api/v1/books/01a19d99-337f-7105-b950-54d940c00914
+Accept: application/json
+
+> {%
+    client.test("Book deleted successfully", function() {
+        // Ожидаем 204 No Content
+        client.assert(response.status === 204, "Response status is not 204");
+    });
+%}
+
+### 6.2 Delete Book - Not Found (Repeat Delete)
+DELETE http://localhost:8000/api/v1/books/5
+Accept: application/json
+
+> {%
+    client.test("Should return 404 since the book is already deleted", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
+
+### 7. Get Author - Success
+GET http://localhost:8000/api/v1/authors/01a19d88-09f4-706a-bfcc-ca2ed449c2b2
+Accept: application/json
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response content-type is json", function() {
+        client.assert(response.contentType.mimeType === "application/json", "Expected 'application/json'");
+    });
+
+    client.test("Check author structure", function() {
+        client.assert(response.body.hasOwnProperty("authorId"), "Missing 'AuthorId'");
+        client.assert(response.body.hasOwnProperty("name"), "Missing 'name'");
+    });
+%}
+
+### 8. Get All Authors - Success
+GET http://localhost:8000/api/v1/authors
+Accept: application/json
+
+> {%
+    client.test("Authors list fetched successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Response is a JSON array", function() {
+        client.assert(response.contentType.mimeType === "application/json", "Expected JSON response");
+        client.assert(Array.isArray(response.body), "Expected an array of authors");
+    });
+%}
+
+### 9.1 Update Author (PUT) - Success
+PUT http://localhost:8000/api/v1/authors/01a19d88-09f4-706a-bfcc-ca2ed449c2b2
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Martin Fowler Updated",
+    "biography": "Renowned software engineer and author on software architecture."
+}
+
+> {%
+    client.test("Author fully updated successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Check updated fields", function() {
+        // Если ответ отдает чистый DTO:
+        client.assert(response.body.name === "Martin Fowler Updated", "Name was not updated");
+
+        // Если вы используете структуру с оберткой 'data', раскомментируйте строку ниже:
+        // client.assert(response.body.data.name === "Martin Fowler Updated", "Name was not updated");
+    });
+%}
+
+### 9.2. Update Author (PUT) - Not Found
+PUT http://localhost:8000/api/v1/authors/99999
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Non-existent Author",
+    "biography": "No bio"
+}
+
+> {%
+    client.test("Should return 404 for missing author", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
+
+### 10. Patch Author (PATCH) - Partial Update (Only Biography)
+PATCH http://localhost:8000/api/v1/authors/1
+Content-Type: application/json
+Accept: application/json
+
+{
+    "biography": "New patched short bio text."
+}
+
+> {%
+    client.test("Author patched successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+
+    client.test("Name should remain unchanged", function() {
+        client.assert(response.body.name === "Martin Fowler Updated", "Name should not have changed");
+        client.assert(response.body.biography === "New patched short bio text.", "Biography was not patched");
+    });
+%}
+
+### 11.1 Delete Author - Success
+DELETE http://localhost:8000/api/v1/authors/01a19d88-09f4-706a-bfcc-ca2ed449c2b2
+Accept: application/json
+
+> {%
+    client.test("Author deleted successfully", function() {
+        // Ожидаем 204 No Content согласно стандартам REST API
+        client.assert(response.status === 204, "Response status is not 204");
+    });
+%}
+
+### 11.2. Delete Author - Not Found (Repeat Delete)
+DELETE http://localhost:8000/api/v1/authors/1
+Accept: application/json
+
+> {%
+    client.test("Should return 404 since the author is already deleted", function() {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}

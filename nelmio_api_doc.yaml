@@ -1,0 +1,217 @@
+openapi: 3.0.0
+info:
+  title: 'Readify LTD API'
+  description: 'Backend REST API for managing books and authors'
+  version: 1.0.0
+paths:
+  /api/v1/authors:
+    get:
+      operationId: get_v1_get_authors
+      responses:
+        default:
+          description: ''
+    post:
+      operationId: post_v1_create_author
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuthorRequest'
+      responses:
+        default:
+          description: ''
+  /api/v1/books:
+    get:
+      operationId: get_v1_get_books
+      responses:
+        default:
+          description: ''
+    post:
+      operationId: post_v1_create_book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+      responses:
+        default:
+          description: ''
+  '/api/v1/authors/{id}':
+    get:
+      operationId: get_v1_get_author
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      responses:
+        default:
+          description: ''
+    put:
+      operationId: put_v1_update_author
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAuthorRequest'
+      responses:
+        default:
+          description: ''
+    delete:
+      operationId: delete_v1_delete_author
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      responses:
+        default:
+          description: ''
+  '/api/v1/books/{id}':
+    get:
+      operationId: get_v1_get_book
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      responses:
+        default:
+          description: ''
+    put:
+      operationId: put_v1_update_book
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookRequest'
+      responses:
+        default:
+          description: ''
+    delete:
+      operationId: delete_v1_delete_book
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[13-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+      responses:
+        default:
+          description: ''
+components:
+  schemas:
+    CreateAuthorRequest:
+      required:
+        - name
+        - biography
+      properties:
+        name:
+          type: string
+          maxLength: 24
+        biography:
+          type: string
+          maxLength: 2000
+      type: object
+    CreateBookRequest:
+      required:
+        - title
+        - description
+        - isbn
+        - priceAmount
+        - priceCurrency
+        - authorId
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          minLength: 10
+        isbn:
+          type: string
+          maxLength: 13
+          minLength: 13
+        priceAmount:
+          type: string
+          pattern: '(?=\d)\d+(?:\.\d{2})?'
+          minimum: 0
+        priceCurrency:
+          type: string
+        authorId:
+          type: string
+      type: object
+    UpdateAuthorRequest:
+      required:
+        - name
+        - biography
+      properties:
+        name:
+          type: string
+          maxLength: 24
+        biography:
+          type: string
+          maxLength: 2000
+      type: object
+    UpdateBookRequest:
+      required:
+        - title
+        - description
+        - isbn
+        - priceAmount
+        - priceCurrency
+        - authorId
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          minLength: 10
+        isbn:
+          type: string
+          maxLength: 13
+          minLength: 13
+        priceAmount:
+          type: string
+          pattern: '(?=\d)\d+(?:\.\d{2})?'
+          minimum: 0
+        priceCurrency:
+          type: string
+        authorId:
+          type: string
+      type: object
+
