@@ -21,13 +21,15 @@ class AuthorRepository extends ServiceEntityRepository
 
     public function findById(UuidInterface $id): ?Author
     {
-        return $this->find($id);
+        return $this->findOneBy([
+            'uuid' => $id,
+        ]);
     }
 
     public function findAll(): array
     {
         return $this->findBy([], [
-            'id' => 'ASC',
+            'uuid' => 'ASC',
         ]);
     }
 }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Request\Book;
 
 use App\Validator\AuthorExists;
-use App\Validator\UniqueIsbn;
+use App\Validator\UpdateBookIsbn;
 use OpenApi\Spec\Schema;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[Schema(title: 'UpdateBookRequest')]
-#[UniqueIsbn]
+#[UpdateBookIsbn]
 final readonly class UpdateBookRequest
 {
     public function __construct(
@@ -45,12 +45,19 @@ final readonly class UpdateBookRequest
             new Assert\Currency(message: 'Invalid currency.'),
         ])]
         public string $priceCurrency,
+
+        /**
+         * @var array<int, string>
+         */
         #[Assert\Sequentially([
-            new Assert\NotBlank(message: 'The author ID is required.'),
+            new Assert\Count(min: 1, minMessage: 'You must provide at least one author ID.'),
             new AuthorExists(),
-            new Assert\Uuid(message: 'The author ID must be a valid ID.'),
         ])]
-        public string $authorId
+        #[Assert\All([
+            new Assert\NotBlank(message: 'The author ID cannot be blank.'),
+            new Assert\Uuid(message: 'The author ID must be a valid UUID.'),
+        ])]
+        public array $authorIds
     ) {
     }
 }

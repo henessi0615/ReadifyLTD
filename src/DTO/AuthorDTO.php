@@ -6,12 +6,11 @@ namespace App\DTO;
 
 use App\Entity\Author;
 use JsonSerializable;
-use Ramsey\Uuid\UuidInterface;
 
 readonly class AuthorDTO implements JsonSerializable
 {
     public function __construct(
-        public UuidInterface $id,
+        public string $id,
         public string $name,
         public ?string $biography
     ) {
@@ -20,14 +19,14 @@ readonly class AuthorDTO implements JsonSerializable
     public static function fromAuthor(Author $author): self
     {
         return new self(
-            $author->getId(),
+            $author->getId()->toString(),
             $author->getName(),
             $author->getBiography()
         );
     }
 
     /**
-     * @return array{authorId: UuidInterface, name: string, biography: string|null}
+     * @return array{authorId: string, name: string, biography: string|null}
      */
     public function jsonSerialize(): array
     {

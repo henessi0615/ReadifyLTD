@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\DTO;
 
-use App\Entity\Author;
-use App\Entity\Book;
 use JsonSerializable;
 use Money\Currencies\ISOCurrencies;
 use Money\Formatter\DecimalMoneyFormatter;
@@ -14,46 +12,61 @@ use Ramsey\Uuid\UuidInterface;
 
 readonly class BookDTO implements JsonSerializable
 {
+    /**
+     * @param AuthorDTO[] $authors
+     */
     public function __construct(
-        public UuidInterface $id,
+        public UuidInterface $uuid,
         public string $title,
         public string $description,
         public string $isbn,
         public Money $price,
-        public Author $author
+        public array $authors
     ) {
     }
 
-    public static function fromBook(Book $book): self
-    {
-        return new self(
-            $book->getId(),
-            $book->getTitle(),
-            $book->getDescription(),
-            $book->getIsbn(),
-            $book->getPrice(),
-            $book->getAuthor()
-        );
+    /**
+     * @param AuthorDTO[] $authorDtos
+     */
+    public static function createWithAuthors(
+        UuidInterface $uuid,
+        string $title,
+        string $description,
+        string $isbn,
+        Money $price,
+        array $authorDtos
+    ): self {
+        return new self($uuid, $title, $description, $isbn, $price, $authorDtos);
     }
 
     /**
-     * @return array{bookId: UuidInterface, title: string,
-     *      description: string, isbn: string,
-     *      priceAmount: string, priceCurrency: string,
-     *      author: Author}
+     * @return array{
+     *     book_uuid: string,
+     *     title: string,
+     *     description: string,
+     *     isbn: string,
+     *     price_amount: string,
+     *     price_currency: string,
+     *     authors: array<int, array{authorId: string, name: string, biography: string|null}>
+     * }
      */
     public function jsonSerialize(): array
     {
-        $formattedPriceAmount = new DecimalMoneyFormatter(new ISOCurrencies());
+        $decimalFormatter = new DecimalMoneyFormatter(new ISOCurrencies());
+
+        $serializedAuthors = array_map(
+            static fn (AuthorDTO $authorDto): array => $authorDto->jsonSerialize(),
+            $this->authors
+        );
 
         return [
-            'bookId' => $this->id,
+            'book_uuid' => $this->uuid->toString(),
             'title' => $this->title,
             'description' => $this->description,
             'isbn' => $this->isbn,
-            'priceAmount' => $formattedPriceAmount->format($this->price),
-            'priceCurrency' => $this->price->getCurrency()->getCode(),
-            'author' => $this->author,
+            'price_amount' => $decimalFormatter->format($this->price),
+            'price_currency' => $this->price->getCurrency()->getCode(),
+            'authors' => array_values($serializedAuthors),
         ];
     }
 }

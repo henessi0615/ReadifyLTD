@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Book;
 
+use App\DTO\AuthorDTO;
 use App\DTO\BookDTO;
+use App\Entity\Author;
 use App\Entity\Book;
 use App\Repository\AuthorRepository;
 use App\Repository\BookRepository;
 use App\Request\Book\UpdateBookRequest;
-use App\Service\Author\AuthorNotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\Uuid;
@@ -27,6 +28,8 @@ readonly class BookService
     }
 
     /**
+     * @param string[] $authorIds
+     *
      * @throws \Throwable
      */
     public function create(
@@ -35,14 +38,19 @@ readonly class BookService
         string $isbn,
         string $priceAmount,
         string $priceCurrency,
-        string $authorId,
+        array $authorIds,
     ): BookDTO {
-        $authorUuid = Uuid::fromString($authorId);
+        $authorUuids = array_map(
+            static fn (string $id): UuidInterface => Uuid::fromString($id),
+            $authorIds
+        );
 
-        $author = $this->authorRepository->find($authorUuid);
+        $authors = $this->authorRepository->findBy([
+            'uuid' => $authorUuids,
+        ]);
 
-        if (null === $author) {
-            throw AuthorNotFoundException::createFromId($authorUuid);
+        if (count($authors) !== count($authorUuids)) {
+            throw new \RuntimeException('One or more authors were not found.');
         }
 
         $price = $this->moneyParser->createFromString($priceAmount, $priceCurrency);
@@ -52,30 +60,43 @@ readonly class BookService
             $description,
             $isbn,
             $price,
-            $author
+            $authors
         );
 
         try {
             $this->entityManager->persist($book);
             $this->entityManager->flush();
 
+            $formattedPrice = $this->moneyParser->format($price);
+
+            $authorDtos = array_map(
+                static fn ($author): AuthorDTO => AuthorDTO::fromAuthor($author),
+                $authors
+            );
+
             $this->bookStoreLogger->info('Book created successfully.', [
-                'book_uuid' => $book->getId()->toString(),
+                'uuid' => $book->getId()->toString(),
                 'title' => $book->getTitle(),
                 'description' => $book->getDescription(),
                 'isbn' => $book->getIsbn(),
-                'price_amount' => $price->getAmount(),
+                'author_uuids' => array_map(static fn ($id) => $id->toString(), $authorUuids),
+                'price_amount' => $formattedPrice,
                 'price_currency' => $price->getCurrency()->getCode(),
             ]);
 
-            return BookDTO::fromBook($book);
+            return BookDTO::createWithAuthors(
+                uuid: $book->getId(),
+                title: $book->getTitle(),
+                description: $book->getDescription(),
+                isbn: $book->getIsbn(),
+                price: $price,
+                authorDtos: $authorDtos
+            );
         } catch (\Throwable $exception) {
             $this->bookStoreLogger->error('Book creation failed.', [
                 'title' => $title,
                 'description' => $description,
                 'isbn' => $isbn,
-                'price_amount' => $price->getAmount(),
-                'price_currency' => $price->getCurrency()->getCode(),
                 'error_message' => $exception->getMessage(),
             ]);
 
@@ -91,7 +112,19 @@ readonly class BookService
             throw BookNotFoundException::createFromId($id);
         }
 
-        return BookDTO::fromBook($book);
+        $authorDtos = array_map(
+            static fn (Author $author): AuthorDTO => AuthorDTO::fromAuthor($author),
+            $book->getAuthors()->toArray()
+        );
+
+        return BookDTO::createWithAuthors(
+            uuid: $book->getId(),
+            title: $book->getTitle(),
+            description: $book->getDescription(),
+            isbn: $book->getIsbn(),
+            price: $book->getPrice(),
+            authorDtos: $authorDtos
+        );
     }
 
     /**
@@ -100,7 +133,21 @@ readonly class BookService
     public function getAll(): array
     {
         return array_map(
-            static fn (Book $book): BookDTO => BookDTO::fromBook($book),
+            function (Book $book): BookDTO {
+                $authorDtos = array_map(
+                    static fn (Author $author): AuthorDTO => AuthorDTO::fromAuthor($author),
+                    $book->getAuthors()->toArray()
+                );
+
+                return BookDTO::createWithAuthors(
+                    uuid: $book->getId(),
+                    title: $book->getTitle(),
+                    description: $book->getDescription(),
+                    isbn: $book->getIsbn(),
+                    price: $book->getPrice(),
+                    authorDtos: $authorDtos
+                );
+            },
             $this->bookRepository->findAll()
         );
     }
@@ -116,34 +163,62 @@ readonly class BookService
             throw BookNotFoundException::createFromId($id);
         }
 
-        $authorId = Uuid::fromString($request->authorId);
+        $authorUuids = array_map(
+            static fn (string $authorId): UuidInterface => Uuid::fromString($authorId),
+            $request->authorIds
+        );
 
-        $author = $this->authorRepository->findById($authorId);
-        if (null === $author) {
-            throw AuthorNotFoundException::createFromId($authorId);
+        $authors = $this->authorRepository->findBy([
+            'uuid' => $authorUuids,
+        ]);
+
+        if (count($authors) !== count($authorUuids)) {
+            throw new \RuntimeException('One or more authors were not found.');
         }
 
         $price = $this->moneyParser->createFromString($request->priceAmount, $request->priceCurrency);
+
+        $formattedPrice = $this->moneyParser->format($price);
 
         $book->setTitle($request->title);
         $book->setDescription($request->description);
         $book->setIsbn($request->isbn);
         $book->setPrice($price);
-        $book->setAuthor($author);
+        $currentAuthors = $book->getAuthors()->toArray();
+        foreach ($currentAuthors as $oldAuthor) {
+            $book->removeAuthor($oldAuthor);
+        }
+
+        foreach ($authors as $newAuthor) {
+            $book->addAuthor($newAuthor);
+        }
 
         try {
             $this->entityManager->flush();
+
+            $authorDtos = array_map(
+                static fn ($author): AuthorDTO => AuthorDTO::fromAuthor($author),
+                $authors
+            );
 
             $this->bookStoreLogger->info('Book updated successfully.', [
                 'book_uuid' => $book->getId()->toString(),
                 'title' => $book->getTitle(),
                 'description' => $book->getDescription(),
                 'isbn' => $book->getIsbn(),
-                'price_amount' => $price->getAmount(),
+                'author_uuids' => array_map(static fn ($id) => $id->toString(), $authorUuids),
+                'price_amount' => $formattedPrice,
                 'price_currency' => $price->getCurrency()->getCode(),
             ]);
 
-            return BookDTO::fromBook($book);
+            return BookDTO::createWithAuthors(
+                uuid: $book->getId(),
+                title: $book->getTitle(),
+                description: $book->getDescription(),
+                isbn: $book->getIsbn(),
+                price: $book->getPrice(),
+                authorDtos: $authorDtos
+            );
         } catch (\Throwable $exception) {
             $this->bookStoreLogger->error('Book update failed.', [
                 'book_uuid' => $id->toString(),

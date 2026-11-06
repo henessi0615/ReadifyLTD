@@ -34,7 +34,7 @@ final readonly class CreateBookController
             isbn: $request->isbn,
             priceAmount: $request->priceAmount,
             priceCurrency: $request->priceCurrency,
-            authorId: $request->authorId
+            authorIds: $request->authorIds
         );
 
         return new BookCreatedResponse($bookDto);

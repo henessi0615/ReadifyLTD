@@ -27,7 +27,7 @@ class BookRepository extends ServiceEntityRepository
     public function findAll(): array
     {
         return $this->findBy([], [
-            'id' => 'ASC',
+            'uuid' => 'ASC',
         ]);
     }
 }

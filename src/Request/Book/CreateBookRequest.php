@@ -45,12 +45,19 @@ final readonly class CreateBookRequest
             new Assert\Currency(message: 'Invalid currency.'),
         ])]
         public string $priceCurrency,
+
+        /**
+         * @var array<int, string>
+         */
         #[Assert\Sequentially([
-            new Assert\NotBlank(message: 'The author ID is required.'),
+            new Assert\Count(min: 1, minMessage: 'You must provide at least one author ID.'),
             new AuthorExists(),
-            new Assert\Uuid(message: 'The author ID must be a valid ID.'),
         ])]
-        public string $authorId
+        #[Assert\All([
+            new Assert\NotBlank(message: 'The author ID cannot be blank.'),
+            new Assert\Uuid(message: 'The author ID must be a valid UUID.'),
+        ])]
+        public array $authorIds
     ) {
     }
 }

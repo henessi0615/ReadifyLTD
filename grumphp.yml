@@ -1,4 +1,5 @@
 grumphp:
     tasks:
         composer:
+            file: composer.json
             strict: true

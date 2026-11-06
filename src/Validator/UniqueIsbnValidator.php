@@ -35,7 +35,11 @@ class UniqueIsbnValidator extends ConstraintValidator
             return;
         }
 
-        $isbn = (string) $value->isbn;
+        if (! is_string($value->isbn)) {
+            return;
+        }
+
+        $isbn = $value->isbn;
 
         if ('' === $isbn) {
             return;
@@ -48,7 +52,7 @@ class UniqueIsbnValidator extends ConstraintValidator
         if (null !== $existingBook) {
             $existingBookId = $existingBook->getId()->toString();
 
-            if (property_exists($value, 'uuid') && $existingBookId === $value->uuid) {
+            if (property_exists($value, 'uuid') && is_string($value->uuid) && $existingBookId === $value->uuid) {
                 return;
             }
 
