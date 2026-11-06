@@ -8,9 +8,10 @@ use App\DTO\BookDTO;
 use App\Entity\Book;
 use App\Repository\AuthorRepository;
 use App\Repository\BookRepository;
-use App\Request\UpdateBookRequest;
+use App\Request\Book\UpdateBookRequest;
 use App\Service\Author\AuthorNotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 
@@ -21,9 +22,13 @@ readonly class BookService
         private AuthorRepository $authorRepository,
         private EntityManagerInterface $entityManager,
         private MoneyParser $moneyParser,
+        private LoggerInterface $bookStoreLogger
     ) {
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function create(
         string $title,
         string $description,
@@ -50,10 +55,32 @@ readonly class BookService
             $author
         );
 
-        $this->entityManager->persist($book);
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->persist($book);
+            $this->entityManager->flush();
 
-        return BookDTO::fromBook($book);
+            $this->bookStoreLogger->info('Book created successfully.', [
+                'book_uuid' => $book->getId()->toString(),
+                'title' => $book->getTitle(),
+                'description' => $book->getDescription(),
+                'isbn' => $book->getIsbn(),
+                'price_amount' => $price->getAmount(),
+                'price_currency' => $price->getCurrency()->getCode(),
+            ]);
+
+            return BookDTO::fromBook($book);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Book creation failed.', [
+                'title' => $title,
+                'description' => $description,
+                'isbn' => $isbn,
+                'price_amount' => $price->getAmount(),
+                'price_currency' => $price->getCurrency()->getCode(),
+                'error_message' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
+        }
     }
 
     public function getById(UuidInterface $id): BookDTO
@@ -78,6 +105,9 @@ readonly class BookService
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function update(UuidInterface $id, UpdateBookRequest $request): BookDTO
     {
         $book = $this->bookRepository->findById($id);
@@ -101,11 +131,36 @@ readonly class BookService
         $book->setPrice($price);
         $book->setAuthor($author);
 
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->flush();
 
-        return BookDTO::fromBook($book);
+            $this->bookStoreLogger->info('Book updated successfully.', [
+                'book_uuid' => $book->getId()->toString(),
+                'title' => $book->getTitle(),
+                'description' => $book->getDescription(),
+                'isbn' => $book->getIsbn(),
+                'price_amount' => $price->getAmount(),
+                'price_currency' => $price->getCurrency()->getCode(),
+            ]);
+
+            return BookDTO::fromBook($book);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Book update failed.', [
+                'book_uuid' => $id->toString(),
+                'title' => $request->title,
+                'description' => $request->description,
+                'isbn' => $request->isbn,
+                'price_amount' => $request->priceAmount,
+                'price_currency' => $request->priceCurrency,
+                'error_message' => $exception->getMessage(),
+            ]);
+            throw $exception;
+        }
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function delete(UuidInterface $id): void
     {
         $book = $this->bookRepository->findById($id);
@@ -114,7 +169,19 @@ readonly class BookService
             throw BookNotFoundException::createFromId($id);
         }
 
-        $this->entityManager->remove($book);
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->remove($book);
+            $this->entityManager->flush();
+
+            $this->bookStoreLogger->info('Book deleted successfully.', [
+                'book_uuid' => $id->toString(),
+            ]);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Book deletion failed.', [
+                'book_uuid' => $id->toString(),
+                'error_message' => $exception->getMessage(),
+            ]);
+            throw $exception;
+        }
     }
 }

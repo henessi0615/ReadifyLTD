@@ -7,18 +7,23 @@ namespace App\Service\Author;
 use App\DTO\AuthorDTO;
 use App\Entity\Author;
 use App\Repository\AuthorRepository;
-use App\Request\UpdateAuthorRequest;
+use App\Request\Author\UpdateAuthorRequest;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\UuidInterface;
 
 readonly class AuthorService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private AuthorRepository $authorRepository
+        private AuthorRepository $authorRepository,
+        private LoggerInterface $bookStoreLogger,
     ) {
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function create(
         string $name,
         ?string $biography
@@ -28,10 +33,25 @@ readonly class AuthorService
             $biography
         );
 
-        $this->entityManager->persist($author);
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->persist($author);
+            $this->entityManager->flush();
 
-        return AuthorDTO::fromAuthor($author);
+            $this->bookStoreLogger->info('Author created successfully', [
+                'author_uuid' => $author->getId()->toString(),
+                'name' => $name,
+                'biography' => $biography,
+            ]);
+
+            return AuthorDTO::fromAuthor($author);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Author creation failed.', [
+                'name' => $name,
+                'error_message' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
+        }
     }
 
     public function getById(UuidInterface $id): AuthorDTO
@@ -56,6 +76,9 @@ readonly class AuthorService
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function update(UuidInterface $id, UpdateAuthorRequest $request): AuthorDTO
     {
         $author = $this->authorRepository->findById($id);
@@ -67,11 +90,30 @@ readonly class AuthorService
         $author->setName($request->name);
         $author->setBiography($request->biography);
 
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->flush();
 
-        return AuthorDTO::fromAuthor($author);
+            $this->bookStoreLogger->info('Author updated successfully.', [
+                'author_uuid' => $id->toString(),
+                'name' => $author->getName(),
+                'biography' => $author->getBiography(),
+            ]);
+
+            return AuthorDTO::fromAuthor($author);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Author update failed.', [
+                'author_uuid' => $id->toString(),
+                'name' => $request->name,
+                'biography' => $request->biography,
+                'error_message' => $exception->getMessage(),
+            ]);
+            throw $exception;
+        }
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function delete(UuidInterface $id): void
     {
         $author = $this->authorRepository->findById($id);
@@ -80,7 +122,19 @@ readonly class AuthorService
             throw AuthorNotFoundException::createFromId($id);
         }
 
-        $this->entityManager->remove($author);
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->remove($author);
+            $this->entityManager->flush();
+
+            $this->bookStoreLogger->info('Author deleted successfully.', [
+                'author_uuid' => $id->toString(),
+            ]);
+        } catch (\Throwable $exception) {
+            $this->bookStoreLogger->error('Author deletion failed.', [
+                'author_uuid' => $id->toString(),
+                'error_message' => $exception->getMessage(),
+            ]);
+            throw $exception;
+        }
     }
 }

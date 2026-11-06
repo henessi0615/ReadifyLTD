@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Validator;
 
 use App\Repository\BookRepository;
-use App\Request\CreateBookRequest;
-use App\Request\UpdateBookRequest;
+use App\Request\Book\CreateBookRequest;
+use App\Request\Book\UpdateBookRequest;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
